@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"hash"
 	"io"
 	"net"
@@ -109,13 +110,15 @@ const (
 )
 
 const (
-	scopeOfflineAccess     = "offline_access" // Request a refresh token.
-	scopeOpenID            = "openid"
-	scopeGroups            = "groups"
-	scopeEmail             = "email"
-	scopeProfile           = "profile"
-	scopeFederatedID       = "federated:id"
-	scopeCrossClientPrefix = "audience:server:client_id:"
+	scopeOfflineAccess        = "offline_access" // Request a refresh token.
+	scopeOpenID               = "openid"
+	scopeGroups               = "groups"
+	scopeEmail                = "email"
+	scopeProfile              = "profile"
+	scopeFederatedID          = "federated:id"
+	scopeCrossClientPrefix    = "audience:server:client_id:"
+	scopeGapsquareCustomClaim = "https://xperthr.systems/scopes/custom_claims"
+	scopeGapsquare            = "https://xperthr.systems/scopes/gapsquare_api"
 )
 
 const (
@@ -296,6 +299,20 @@ type idTokenClaims struct {
 	PreferredUsername string `json:"preferred_username,omitempty"`
 
 	FederatedIDClaims *federatedIDClaims `json:"federated_claims,omitempty"`
+
+	Subscriptions string `json:"Subscriptions"`
+}
+
+type subscription struct {
+	Id string `json:"id"`
+	// date format 02-06-2050
+	Expiry string `json:"expiry"`
+	// Active
+	Status         string `json:"status"`
+	Name           string `json:"name"`
+	CompanyName    string `json:"companyName"`
+	CompanyCountry string `json:"companyCountry"`
+	SalesReference string `json:"salesReference"`
 }
 
 type federatedIDClaims struct {
@@ -416,6 +433,29 @@ func (s *Server) newIDToken(clientID string, claims storage.Claims, scopes []str
 				ConnectorID: connID,
 				UserID:      claims.UserID,
 			}
+		case scope == scopeGapsquare || scope == scopeGapsquareCustomClaim:
+			if len(tok.Subscriptions) > 0 {
+				continue
+			}
+
+			var subscriptions []subscription
+			for _, company := range claims.Companies {
+				companySubscription := subscription{
+					Id:             uuid.New().String(),
+					Expiry:         "02-06-2050",
+					Status:         "Active",
+					CompanyName:    company.Name,
+					Name:           company.Plan,
+					SalesReference: company.Name,
+				}
+				subscriptions = append(subscriptions, companySubscription)
+			}
+
+			//testSubscription := `[{"id":"","expiry":"02-06-2050","status":"Active","name":"` + claims.Plan + `","companyName":"","companyCountry":"","salesReference":""}]`
+			//tok.Subscriptions = testSubscription
+			subscriptionBytes, _ := json.Marshal(subscriptions)
+			tok.Subscriptions = string(subscriptionBytes)
+
 		default:
 			peerID, ok := parseCrossClientScope(scope)
 			if !ok {
@@ -529,7 +569,7 @@ func (s *Server) parseAuthorizationRequest(r *http.Request) (*storage.AuthReques
 		switch scope {
 		case scopeOpenID:
 			hasOpenIDScope = true
-		case scopeOfflineAccess, scopeEmail, scopeProfile, scopeGroups, scopeFederatedID:
+		case scopeOfflineAccess, scopeEmail, scopeProfile, scopeGroups, scopeFederatedID, scopeGapsquare, scopeGapsquareCustomClaim:
 		default:
 			peerID, ok := parseCrossClientScope(scope)
 			if !ok {

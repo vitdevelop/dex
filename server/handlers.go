@@ -509,6 +509,7 @@ func (s *Server) finalizeLogin(ctx context.Context, identity connector.Identity,
 		Email:             identity.Email,
 		EmailVerified:     identity.EmailVerified,
 		Groups:            identity.Groups,
+		Companies:         identity.Companies,
 	}
 
 	updater := func(a storage.AuthRequest) (storage.AuthRequest, error) {
@@ -1134,7 +1135,7 @@ func (s *Server) handlePasswordGrant(w http.ResponseWriter, r *http.Request, cli
 		switch scope {
 		case scopeOpenID:
 			hasOpenIDScope = true
-		case scopeOfflineAccess, scopeEmail, scopeProfile, scopeGroups, scopeFederatedID:
+		case scopeOfflineAccess, scopeEmail, scopeProfile, scopeGroups, scopeFederatedID, scopeGapsquareCustomClaim, scopeGapsquare:
 		default:
 			peerID, ok := parseCrossClientScope(scope)
 			if !ok {

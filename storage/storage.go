@@ -180,6 +180,7 @@ type Claims struct {
 	PreferredUsername string
 	Email             string
 	EmailVerified     bool
+	Companies         []Company
 
 	Groups []string
 }
@@ -354,6 +355,13 @@ type Password struct {
 
 	// Randomly generated user ID. This is NOT the primary ID of the Password object.
 	UserID string `json:"userID"`
+
+	Companies []Company `json:"companies"`
+}
+
+type Company struct {
+	Name string `json:"name"`
+	Plan string `json:"plan"`
 }
 
 // Connector is an object that contains the metadata about connectors used to login to Dex.
